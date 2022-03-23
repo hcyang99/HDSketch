@@ -1,6 +1,7 @@
 #include "CountMinSketch/ModuloCountMinSketch.hh"
 #include "CountMinSketch/MurmurCountMinSketch.hh"
 #include "HDSketch/HDSketch.hh"
+#include "HDSketch/HDSketchAVX512.hh"
 #include "utils/fasta.hh"
 #include <iostream>
 #include <cstdlib>
@@ -103,6 +104,44 @@ int main(int argc, char** argv)
 
     delete hd;
     hd = nullptr;
+
+    
+    cerr << "HDSketchAVX512 " << load_factor << "x ..." << endl;
+    auto hd_avx512 = new HDSketchAVX512<Compressed128Mer>(num_128mers / load_factor, gen);
+
+    t0 = chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < num_128mers; ++i)
+    {
+        Compressed128Mer key;
+        fa.Read128Mer(i, key);
+        hd_avx512->insert(key);
+    }
+    t1 = chrono::high_resolution_clock::now();
+    cout << "HDSketchAVX512 " << load_factor << "x construct time: " << chrono::duration_cast<chrono::microseconds>(t1 - t0).count() << endl;
+
+    out.reserve(num_128mers);
+
+    t0 = chrono::high_resolution_clock::now();
+    for (const auto& it : dict)
+    {
+        out.push_back(hd_avx512->estimate(it.first));
+    }
+    t1 = chrono::high_resolution_clock::now();
+    cout << "HDSketchAVX512 " << load_factor << "x walk time: " << chrono::duration_cast<chrono::microseconds>(t1 - t0).count() << endl;
+    out.clear();
+
+    counter = 0;
+    square_err_sum = 0;
+    for (const auto& it : dict)
+    {
+        ++counter;
+        double err = hd_avx512->estimate(it.first) - it.second;
+        square_err_sum += err * err;
+    }
+    cout << "HDSketchAVX512 " << load_factor << "x MSE: " << square_err_sum / counter << endl;
+
+    delete hd_avx512;
+    hd_avx512 = nullptr;
 
 
     // for (size_t i = 1; i <= 16; ++i)

@@ -23,6 +23,12 @@ class HDSketch
         seed_1 = dist(gen);
     }
 
+    ~HDSketch()
+    {
+        delete[] buckets;
+        buckets = nullptr;
+    }
+
     /**
      * @brief Estimates the number of occurence of given key
      * @param key the query key
@@ -71,5 +77,6 @@ class HDSketch
         uint32_t result;
         MurmurHash3_x86_32(&key, sizeof(K), seed_1, &result);
         return result;
+        // return key.u32[0];
     }
 };
